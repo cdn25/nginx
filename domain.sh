@@ -43,7 +43,7 @@ server {
     server_name $DOMAIN_NAME www.$DOMAIN_NAME;
 
     root $WEB_ROOT;
-    index index.html;
+	index index.php index.html index.htm;
 
     location / {
         try_files \$uri \$uri/ =404;
