@@ -4,15 +4,33 @@
 set -e
 
 # Check if the user provided a domain name
+#!/bin/bash
+
+# Check if a domain name is provided as an argument
 if [ -z "$1" ]; then
     echo "Usage: $0 <domain_name>"
     exit 1
 fi
 
+# Variables
 DOMAIN_NAME=$1
 NGINX_CONF_DIR="/etc/nginx/sites-available"
 NGINX_CONF_ENABLED="/etc/nginx/sites-enabled"
 WEB_ROOT="/var/www/$DOMAIN_NAME"
+
+# Check if the configuration file exists in sites-available
+if [ ! -f "$NGINX_CONF_DIR/$DOMAIN_NAME" ]; then
+    echo "Error: Configuration file $NGINX_CONF_DIR/$DOMAIN_NAME does not exist."
+    exit 1
+fi
+
+# Check if the symbolic link already exists
+if [ -e "$NGINX_CONF_ENABLED/$DOMAIN_NAME" ]; then
+    echo "Symbolic link for $DOMAIN_NAME already exists. Skipping."
+else
+    ln -s "$NGINX_CONF_DIR/$DOMAIN_NAME" "$NGINX_CONF_ENABLED/$DOMAIN_NAME"
+    echo "Symbolic link created for $DOMAIN_NAME."
+fi
 
 # Create a web root directory
 echo "Creating web root directory at $WEB_ROOT..."
