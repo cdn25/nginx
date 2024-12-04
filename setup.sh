@@ -25,4 +25,11 @@ sudo systemctl status nginx | grep Active
 
 echo "Nginx installation completed!"
 
+sudo apt install php php-fpm php-mysql -y
+
+sudo systemctl start php7.4-fpm  # Replace 7.4 with your PHP version
+sudo systemctl enable php7.4-fpm
+
+
 cp /root/nginx/domain.sh /usr/local/bin/domain.sh
+
