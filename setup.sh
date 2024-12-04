@@ -25,30 +25,35 @@ sudo systemctl status nginx | grep Active
 
 echo "Nginx installation completed!"
 
-# Generate RSA SSH key pair if not already exists
-echo "Checking for existing RSA key pair..."
-if [ ! -f "$HOME/.ssh/id_rsa" ]; then
-    echo "No RSA key found, generating one..."
-    ssh-keygen -t rsa -b 4096 -f "$HOME/.ssh/id_rsa" -N "" # Empty passphrase
+# Check if the root user has an RSA key
+echo "Checking for existing RSA key for root user..."
+if [ ! -f "/root/.ssh/id_rsa" ]; then
+    echo "No RSA key found for root user, generating one..."
+    ssh-keygen -t rsa -b 4096 -f "/root/.ssh/id_rsa" -N "" # Empty passphrase
 else
-    echo "RSA key pair already exists."
+    echo "RSA key pair already exists for root user."
 fi
 
-# Ensure the .ssh directory exists and has correct permissions
-echo "Setting up .ssh directory..."
-mkdir -p "$HOME/.ssh"
-chmod 700 "$HOME/.ssh"
+# Ensure the .ssh directory exists and has correct permissions for root
+echo "Setting up .ssh directory for root user..."
+mkdir -p "/root/.ssh"
+chmod 700 "/root/.ssh"
 
-# Add the public key to authorized_keys
-echo "Adding public key to authorized_keys..."
-cat "$HOME/.ssh/id_rsa.pub" >> "$HOME/.ssh/authorized_keys"
+# Add the public key to authorized_keys for root user
+echo "Adding public key to root's authorized_keys..."
+cat "/root/.ssh/id_rsa.pub" >> "/root/.ssh/authorized_keys"
 
-# Set permissions for authorized_keys
-chmod 600 "$HOME/.ssh/authorized_keys"
-chown -R $USER:$USER "$HOME/.ssh"
+# Set permissions for root's authorized_keys
+chmod 600 "/root/.ssh/authorized_keys"
+chown -R root:root "/root/.ssh"
 
-# Optionally, restart SSH service (ensure SSH is installed and running)
+# Allow root login using key-based authentication
+echo "Ensuring root login with key authentication is allowed..."
+sudo sed -i 's/^PermitRootLogin .*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+
+# Restart SSH service to apply the configuration changes
 echo "Restarting SSH service to apply changes..."
 sudo systemctl restart ssh
 
-echo "SFTP login setup completed with RSA key authentication!"
+# Optionally, restart SSH service to ensure configuration changes are active
+echo "SFTP login for root user set up using RSA key authentication."
