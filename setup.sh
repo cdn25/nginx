@@ -24,3 +24,5 @@ echo "Nginx status:"
 sudo systemctl status nginx | grep Active
 
 echo "Nginx installation completed!"
+
+cp /root/nginx/domain.sh /usr/local/bin/domain.sh
