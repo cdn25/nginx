@@ -1,74 +1,44 @@
 #!/bin/bash
 
-# Exit immediately if a command fails
-set -e
-
-# Check if the user provided a domain name
-#!/bin/bash
-
-# Check if a domain name is provided as an argument
+# Check if domain name is provided
 if [ -z "$1" ]; then
-    echo "Usage: $0 <domain_name>"
+    echo "Usage: domain.sh <domain-name>"
     exit 1
 fi
 
-# Variables
-DOMAIN_NAME=$1
-NGINX_CONF_DIR="/etc/nginx/sites-available"
-NGINX_CONF_ENABLED="/etc/nginx/sites-enabled"
-WEB_ROOT="/var/www/$DOMAIN_NAME"
+DOMAIN=$1
+WEB_ROOT="/var/www/$DOMAIN"
+NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
+NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN"
 
-# Check if the configuration file exists in sites-available
-if [ ! -f "$NGINX_CONF_DIR/$DOMAIN_NAME" ]; then
-    echo "Error: Configuration file $NGINX_CONF_DIR/$DOMAIN_NAME does not exist."
-    exit 1
-fi
-
-# Check if the symbolic link already exists
-if [ -e "$NGINX_CONF_ENABLED/$DOMAIN_NAME" ]; then
-    echo "Symbolic link for $DOMAIN_NAME already exists. Skipping."
+# Create web root directory
+if [ ! -d "$WEB_ROOT" ]; then
+    sudo mkdir -p $WEB_ROOT
+    sudo chown -R $USER:$USER $WEB_ROOT
+    echo "<?php echo 'Hello from $DOMAIN'; ?>" > $WEB_ROOT/index.php
+    echo "Web root created at $WEB_ROOT"
 else
-    ln -s "$NGINX_CONF_DIR/$DOMAIN_NAME" "$NGINX_CONF_ENABLED/$DOMAIN_NAME"
-    echo "Symbolic link created for $DOMAIN_NAME."
+    echo "Web root already exists at $WEB_ROOT"
 fi
 
-# Create a web root directory
-echo "Creating web root directory at $WEB_ROOT..."
-sudo mkdir -p "$WEB_ROOT"
-sudo chown -R $USER:$USER "$WEB_ROOT"
-sudo chmod -R 755 "$WEB_ROOT"
-
-# Create a sample index.html file
-echo "Creating sample index.html file..."
-echo "<!DOCTYPE html>
-<html>
-<head>
-    <title>Welcome to $DOMAIN_NAME!</title>
-</head>
-<body>
-    <h1>Success! The $DOMAIN_NAME server block is working!</h1>
-</body>
-</html>" | sudo tee "$WEB_ROOT/index.html"
-
-# Create the Nginx server block configuration file
-CONFIG_FILE="$NGINX_CONF_DIR/$DOMAIN_NAME"
-echo "Creating Nginx server block configuration file at $CONFIG_FILE..."
-sudo bash -c "cat > $CONFIG_FILE" <<EOL
+# Create NGINX configuration
+if [ ! -f "$NGINX_CONF" ]; then
+    cat <<EOL | sudo tee $NGINX_CONF
 server {
     listen 80;
-    server_name $DOMAIN_NAME www.$DOMAIN_NAME;
+    server_name $DOMAIN;
 
     root $WEB_ROOT;
-    index index.php index.html index.htm;
+    index index.php index.html;
 
     location / {
-        try_files $uri $uri/ =404;
+        try_files \$uri \$uri/ /index.php;
     }
 
-    location ~ \.php$ {
+    location ~ \.php\$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/var/run/php/php-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         include fastcgi_params;
     }
 
@@ -76,20 +46,14 @@ server {
         deny all;
     }
 }
-
 EOL
 
-# Enable the configuration
-echo "Enabling the server block configuration..."
-sudo ln -s "$CONFIG_FILE" "$NGINX_CONF_ENABLED"
+    sudo ln -s $NGINX_CONF $NGINX_ENABLED
+    echo "NGINX configuration created and enabled for $DOMAIN"
+else
+    echo "NGINX configuration already exists for $DOMAIN"
+fi
 
-# Test Nginx configuration
-echo "Testing Nginx configuration..."
-sudo nginx -t
-
-# Reload Nginx to apply changes
-echo "Reloading Nginx..."
-sudo systemctl reload nginx
-
-echo "Domain $DOMAIN_NAME has been configured and is ready to use."
-
+# Test and reload NGINX
+sudo nginx -t && sudo systemctl reload nginx
+echo "NGINX reloaded successfully!"
