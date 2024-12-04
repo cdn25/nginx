@@ -1,35 +1,31 @@
 #!/bin/bash
 
-# Exit immediately if a command exits with a non-zero status
-set -e
+# Update system packages
+echo "Updating system packages..."
+sudo apt update && sudo apt upgrade -y
 
-# Update the package list
-echo "Updating package list..."
-sudo apt update
+# Install NGINX
+echo "Installing NGINX..."
+sudo apt install nginx -y
 
-# Install Nginx
-echo "Installing Nginx..."
-sudo apt install -y nginx
+# Install PHP and required extensions
+echo "Installing PHP and extensions..."
+sudo apt install php-fpm php-cli php-mysql php-curl php-xml php-mbstring -y
 
-# Enable Nginx to start on boot
-echo "Enabling Nginx to start on boot..."
+# Start and enable NGINX service
+echo "Starting and enabling NGINX..."
+sudo systemctl start nginx
 sudo systemctl enable nginx
 
-# Start Nginx service
-echo "Starting Nginx..."
-sudo systemctl start nginx
-
-# Print the status of Nginx
-echo "Nginx status:"
-sudo systemctl status nginx | grep Active
-
-echo "Nginx installation completed!"
-
-sudo apt install php php-fpm php-mysql -y
-
-sudo systemctl start php7.4-fpm  # Replace 7.4 with your PHP version
-sudo systemctl enable php7.4-fpm
-
-
+# Copy domain.sh to /usr/local/bin/
+echo "Copying domain.sh to /usr/local/bin/..."
 cp /root/nginx/domain.sh /usr/local/bin/domain.sh
+chmod +x /usr/local/bin/domain.sh
 
+echo "domain.sh copied and made executable at /usr/local/bin/"
+
+# Reload NGINX service
+echo "Reloading NGINX service..."
+sudo systemctl reload nginx
+
+echo "Setup complete! NGINX and PHP installed, and domain.sh is ready to use."
