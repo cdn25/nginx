@@ -1,59 +1,76 @@
 #!/bin/bash
 
-# Check if domain name is provided
-if [ -z "$1" ]; then
-    echo "Usage: domain.sh <domain-name>"
+# Define the function to add a domain
+add_domain() {
+  DOMAIN=$1
+
+  if [ -z "$DOMAIN" ]; then
+    echo "Usage: $0 domain.com"
     exit 1
-fi
+  fi
 
-DOMAIN=$1
-WEB_ROOT="/var/www/$DOMAIN"
-NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
-NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN"
+  # Define directories
+  ROOT_DIR="/var/www/$DOMAIN"
+  SITES_AVAILABLE="/etc/nginx/sites-available/$DOMAIN"
+  SITES_ENABLED="/etc/nginx/sites-enabled/$DOMAIN"
 
-# Create web root directory
-if [ ! -d "$WEB_ROOT" ]; then
-    sudo mkdir -p $WEB_ROOT
-    sudo chown -R $USER:$USER $WEB_ROOT
-    echo "<?php echo 'Hello from $DOMAIN'; ?>" > $WEB_ROOT/index.php
-    echo "Web root created at $WEB_ROOT"
-else
-    echo "Web root already exists at $WEB_ROOT"
-fi
+  # Check if the domain already has a configuration
+  if [ -f "$SITES_AVAILABLE" ]; then
+    echo "Domain $DOMAIN is already configured. Updating site configuration only..."
+  else
+    # Ensure the root directory exists
+    if [ ! -d "$ROOT_DIR" ]; then
+      echo "Directory $ROOT_DIR does not exist. Creating it..."
+      mkdir -p "$ROOT_DIR"
+    else
+      echo "Directory $ROOT_DIR already exists. Skipping creation."
+    fi
 
-# Create NGINX configuration
-if [ ! -f "$NGINX_CONF" ]; then
-    cat <<EOL | sudo tee $NGINX_CONF
+    # Set permissions for the directory
+    echo "Setting permissions for $ROOT_DIR..."
+    chown -R www-data:www-data "$ROOT_DIR"
+    chmod -R 755 "$ROOT_DIR"
+
+    # Create Nginx site configuration
+    echo "Creating Nginx configuration for $DOMAIN..."
+    cat <<EOF >"$SITES_AVAILABLE"
 server {
     listen 80;
-    server_name $DOMAIN;
+    server_name $DOMAIN www.$DOMAIN;
 
-    root $WEB_ROOT;
-    index index.php index.html;
+    root $ROOT_DIR;
+    index index.html;
 
     location / {
-        try_files \$uri \$uri/ /index.php;
-    }
-
-    location ~ \.php\$ {
-        include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/var/run/php/php-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        include fastcgi_params;
-    }
-
-    location ~ /\.ht {
-        deny all;
+        try_files \$uri \$uri/ =404;
     }
 }
-EOL
+EOF
+  fi
 
-    sudo ln -s $NGINX_CONF $NGINX_ENABLED
-    echo "NGINX configuration created and enabled for $DOMAIN"
-else
-    echo "NGINX configuration already exists for $DOMAIN"
+  # Enable site
+  echo "Enabling site $DOMAIN..."
+  ln -sf "$SITES_AVAILABLE" "$SITES_ENABLED"
+
+  # Test Nginx configuration
+  echo "Testing Nginx configuration..."
+  nginx -t
+  if [ $? -eq 0 ]; then
+    echo "Reloading Nginx..."
+    systemctl reload nginx
+    echo "Domain $DOMAIN is set up successfully!"
+  else
+    echo "Error in Nginx configuration. Check the configuration file."
+    exit 1
+  fi
+}
+
+# Main script execution
+if [ $# -eq 0 ]; then
+  echo "Usage: $0 domain.com"
+  exit 1
 fi
 
-# Test and reload NGINX
-sudo nginx -t && sudo systemctl reload nginx
-echo "NGINX reloaded successfully!"
+for DOMAIN in "$@"; do
+  add_domain "$DOMAIN"
+done
